@@ -1,0 +1,365 @@
+---
+title: "Assessing Financial Activities of Customers Fraud Detection and Prediction"
+author: "Rabiat Atanda"
+date: "`r Sys.Date()`"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+## Introduction
+Financial fraud usually characterised by wrongfully using peoples' financial products like debit and credit card in transaction without their knowledge or consent is always a thing of worry that we dread as humans. Especially in this era of high reliance on technology. It has posed a lot threat to individuals as well as organizations leading to incure of high level of liabilities, debt, job termination and even homicide.
+
+Hence, this project focuses on exploring data collected from daily transactions of individuals in the United States.
+
+## Description of Dataset
+The data used in this study is part of 10-year-transaction records of customers from 2010, consisting of 13,305,915 rows and 12 columns out of which 174,621 rows and 14 columns were taken through data transformation.
+
+The variables in this dataset are
+X, id, date, time, client_id, card_id, amount, use_chip, merchant_id, merchant_city, merchant_state, zip, mcc, errors,
+
+
+
+
+## Data Cleaning
+At this stage, the precleaned transaction data wassaved and reloaded back in to R_studio, while the raw data removed for efficient memory use. Thereafter further cleaning was conducted this is to ensure compatibility with R programming during analyses.
+
+<!-- # ```{r} -->
+<!-- #  install.packages("dplyr") -->
+<!-- #  install.packages("tidyr") -->
+<!-- # library(dplyr) -->
+<!-- # library(tidyr) -->
+<!-- # transaction <-  read.csv("cleanedTransaction.csv") -->
+<!-- # transaction$errors[transaction$errors == ""] = "none" -->
+<!-- #  -->
+<!-- # #Removing spaces in observations -->
+<!-- # for (i in 1:nrow(transaction)) { -->
+<!-- #   for (j in 1:ncol(transaction)){ -->
+<!-- #     if (grepl(" ", transaction[i,j])) { -->
+<!-- #       transaction[i, j] <- gsub(" ", "_", transaction[i, j]) -->
+<!-- #     } else if (grepl("\\$,", transaction[i, j])) { -->
+<!-- #       transaction[i, j] <- gsub("\\$", "", transaction[i, j]) -->
+<!-- #     } -->
+<!--   } -->
+<!-- } -->
+
+<!-- cat(paste0(names(transaction), ',')) -->
+
+<!-- transaction <- transaction[order(transaction$client_id),] -->
+<!-- # #Show the combined date and time -->
+
+<!-- # transaction$dateTime <- as.POSIXct(paste(transaction$date, transaction$time), format="%Y-%m-%d %H:%M:%S") -->
+<!-- ``` -->
+
+
+## Data Transformation
+For efficient fraud prediction and anomaly detection, the transaction data set was further transformed to accomodate monthly transaction by each client, and z score estimated to for outlier or anomaly, which was translated to fraud indicator, hence, we conclude monthly  transaction of each client for the years under study to be fraudlent if the z_score (The distance between each monthly transaction and the mean of that transaction per month) of that transction is greater than 3.
+```{r}
+# library(lubridate)
+# #Date-time Column
+# transaction <- transaction %>%
+#   mutate(datetime = ymd_hms(paste(date, time)),
+#          day_of_week = wday(datetime, label = TRUE), # Day of the week
+# week = week(datetime),
+# month = month(datetime),
+# year = year(datetime),
+# amount=as.numeric(amount))
+# 
+# 
+# #
+# #Transactions per month
+# trans.per.mn <- transaction %>%
+#   group_by(client_id, year, month, amount, use_chip) %>%
+#   summarise(trans_count = n()) %>%
+#   group_by(client_id, year, month) %>%
+#   mutate(z.score.amt=round((amount-mean(amount))/sd(amount), 3),z.score.amt=ifelse(is.na(z.score.amt), 0, round((amount-mean(amount))/sd(amount), 3)),
+#          fraudulent= if_else(abs(z.score.amt) > 3,  "yes", "no", missing="undecided"))
+
+
+
+
+
+
+
+```
+## Data Exploration
+Examining our newly transformed dataset is essential to understanding the best way to approach further analyses as well as understanding the new dataset itself as to how the variables interact with one another. Hence for these newly transformed transaction data we have 8 variables (columns) and 162,026 rows.
+```{r}
+# #cat(paste0(names(trans.per.mn), ','))
+#  trans.per.mn <- trans.per.mn %>%
+#     mutate(client_id = as.integer(client_id),
+# #     year = as.integer(year),
+# #     month = as.integer(month),
+# #     trans_count = as.integer(trans_count),
+# #     amount = as.numeric(amount),
+# #     z.score.amt = as.numeric(z.score.amt),
+#      use_chip = as.factor(use_chip),
+# #     errors = as.factor(errors),
+#      fraudulent = as.factor(fraudulent)
+#   )
+# #trans.per.mn$fraudulent <- as.factor(trans.per.mn$fraudulent)
+# #trans.per.mn <- na.omit(trans.per.mn)
+# 
+# install.packages("ggplot2")
+# library(ggplot2)
+# ggplot(trans.per.mn, aes(x = as.factor(year), y = amount, color = as.factor(fraudulent))) + 
+#   geom_point(size=2) + labs(title = "Scatter Plot of Transaction Amount vs Years", x = "Transaction Years", y = "Amount", color = "Fraudulent")+
+#   theme(axis.text.x = element_text(angle = 30, hjust = 0.5, vjust = 0.5)) +
+#   scale_y_continuous(limits = c(-485.00, 2823.72), breaks = seq(-485.00, 2823.72, 50)) + 
+#   theme_minimal() 
+# 
+# plot(trans.per.mn)
+
+```
+
+## Data Spliting
+
+```{r}
+set.seed(124)
+trans.per.mn <- droplevels(trans.per.mn)
+#split <- sample(1:nrow(trans.per.mn), 2000)
+train <- trans.per.mn[trans.per.mn$year <= 2017,]
+test <- trans.per.mn[trans.per.mn$year > 2017,]
+
+```
+
+
+## Assessing the Most Appropriate Model for fradulent Transaction
+Here, the aim is to see which variables best explain the fraudulent transaction. Also, we understand that logistic regression is great for categorical responses, this is not to say other models that have been modified for categorical responses will not do well, which calls for assessing these models for verification.
+
+Therefore, for fraudulent transaction, KNN, logistic regression, random forest will be considered
+
+
+
+
+## K-Nearest Neighbor
+```{r}
+set.seed(124)
+#install.packages("e1071")
+library(e1071)
+#install.packages("caret", dependencies = T)
+library(caret)
+
+##Cross-validation
+tr.ctrl <- trainControl(method="cv", number=10,
+                        savePredictions = "final")
+knn.fit <- train(fraudulent~., data=train, method="knn", trControl=tr.ctrl)
+
+plot(knn.fit)
+
+# # Train Confusion Matrix 
+# confusionMatrix(knn.fit$pred$pred, train$fraudulent[train$fraudulent!=NA])
+# 
+# # Train Prediction error
+# (knn.trainErr <- mean(knn.fit$pred$pred !=  train$fraudulent[train$fraudulent != NA]))
+
+#Predictin with knn
+knn.pred <- predict(knn.fit, newdata = test)
+
+
+# Test Confusion Matrix 
+table(knn.pred, test$fraudulent)
+
+# Test Prediction error
+(knn.testErr <- mean(knn.pred !=  test$fraudulent))
+
+
+```
+
+## Logistic Regression
+```{r}
+#install.packages("glmnet")
+library(glmnet)
+#x <- subset(train, select = -fraudulent)
+glm.fit <- train(x, train$fraudulent, method="glmnet", trControl=tr.ctrl)
+
+summary(glm.fit)
+
+glm.pred <- predict(glm.fit, newdata=test)
+test.res <- ifelse(glm.pred>0.5, 1, 0)
+
+(glm.testErr <- mean(test.res != test$fraudulent))
+
+#confusion Matrix 
+table(test.res, test$fraudulent)
+
+plot(glm.fit)
+
+```
+
+## Random Forest on Fraudulent Transaction Prediction
+```{r}
+rf.fit <- train(as.factor(fraudulent) ~ ., data=train, method="rf", metric="Accuracy", trControl=tr.ctrl, na.action=na.omit)
+
+rf.pred <- predict(rf.fit, newdata=test)
+
+table(rf.pred, test$fraudulent)
+
+(rf.testErr <- mean(rf.pred != test$fraudulent))
+
+plot(rf.fit)
+
+```
+
+
+## Prediction of Client Transaction and Assessment of Customer Behavior Over the Nine years
+
+Her our interest is on the transaction to predict the amount leaving customers' account over the year. This will enable us see what factors does the amount customers spend with their card depends on given our transformed variables.
+
+In this we will like to see if there is a linear relationship between customer transaction amount and every other variables in this work. We also examine the variables that make the best model using best subset method
+
+
+## Best Subset for Best Model
+```{r}
+library(leaps)
+
+reg.fit <- regsubsets(amount~., train, nvmax=length(train))
+
+reg.summ <- summary(reg.fit)
+
+which.min(reg.summ$bic)
+which.min(reg.summ$Cp)
+cbind(cp=reg.summ$cp, bic=reg.summ$bic)
+
+coef(reg.fit, 8) 
+
+
+```
+
+
+## Using Linear Model for Transaction Amount Prediction and Assessment
+
+
+
+Transformed Model
+```{r}
+
+lm.fit <- lm(scale(amount)~., data=train)
+
+summary(lm.fit)
+
+lm.pred <- predict(lm.fit, newdata = test)
+
+
+#Prediction Error (RMSE)
+(lm.testErr <- sqrt(mean((lm.pred-test$amount)^2)))
+
+
+#Prediction visualization
+ggplot(data.frame(actual = test$amount, predicted = lm.pred),
+       aes(x = actual, y = lm.pred)) +
+    geom_point() +
+    geom_smooth(method="lm", color = "blue") +
+    labs(title = "Predicted vs Actual")
+
+plot(lm.fit)
+```
+
+
+
+## Lasso Regression to Predict Amount
+```{r}
+install.packages("glmnet")
+library(glmnet)
+las.fit <- train(scale(amount)~., data=train, method="glmnet",
+                 tuneGrid=expand.grid(alpha = 1, lambda = 1),
+                 trControl=tr.ctrl)
+
+las.pred <- predict(las.fit, newdata=test)
+
+(las.testErr <- sqrt(mean((las.pred-test$amount)^2)))
+
+
+ggplot(data.frame(actual = test$amount, predicted = las.pred),
+       aes(x = actual, y = las.pred)) +
+    geom_point() +
+    geom_smooth(method="auto", color = "blue") +
+    labs(title = "Predicted vs Actual")
+
+plot(las.fit)
+
+```
+## Ridge Regression
+```{r}
+rid.fit <- train(scale(amount)~., data=train, method="glmnet",
+                 tuneGrid=expand.grid(alpha = 0, lambda = 1),
+                                      trControl=tr.ctrl)
+
+rid.pred <- predict(rid.fit, newdata=test)
+
+(rid.testErr <- sqrt(mean((rid.pred-test$amount)^2)))
+
+
+ggplot(data.frame(actual = test$amount, predicted = rid.pred),
+       aes(x = actual, y = rid.pred)) +
+    geom_point() +
+    geom_smooth(method="auto", color = "blue") +
+    labs(title = "Predicted vs Actual")
+
+plot(rid.fit)
+
+
+
+```
+
+## Extreme Gradient Boosting
+```{r}
+install.packages("xgboost")
+library(xgboost)
+xgbGrid <- expand.grid(nrounds = c(100,200), 
+                       max_depth = c(10, 15, 20, 25),
+                       colsample_bytree = seq(0.5, 0.9, length.out = 5),
+                       eta = 0.1,
+                       gamma=0,
+                       min_child_weight = 1,
+                       subsample = 1
+                      )
+
+xgb.fit <- train(scale(amount)~., data=train,  tuneGrid = xgbGrid,
+  method = "xgbTree",                                                    trControl=tr.ctrl)
+
+xgb.pred <- predict(xgb.fit, newdata=test)
+
+(xgb.testErr <- sqrt(mean((xgb.pred-test$amount)^2)))
+
+
+ggplot(data.frame(actual = test$amount, predicted = xgb.pred),
+       aes(x = actual, y = xgb.pred)) +
+    geom_point() +
+    geom_smooth(method="auto", color = "blue") +
+    labs(title = "Predicted vs Actual")
+
+plot(xgb.fit)
+
+
+
+
+```
+
+
+```{r}
+save(c)
+```
+## Support Vector Machine
+```{r}
+library(caret)
+#install.packages("kernlab")
+library(kernlab)
+svm.fit <- train(amount~., data=train, method="svmRadial",                                                    trControl=tr.ctrl, na.action=na.omit)
+
+svm.pred <- predict(svm.fit, newdata=test)
+
+(svm.testErr <- sqrt(mean((svm.pred-test$amount)^2)))
+
+
+ggplot(data.frame(actual = test$amount, predicted = svm.pred),
+       aes(x = actual, y = svm.pred)) +
+    geom_point() +
+    geom_smooth(method="auto", color = "blue") +
+    labs(title = "Predicted vs Actual")
+
+
+plot(svm.fit)
+
+```
